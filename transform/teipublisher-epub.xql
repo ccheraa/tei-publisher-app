@@ -21,8 +21,6 @@ import module namespace html="http://www.tei-c.org/tei-simple/xquery/functions";
 
 import module namespace epub="http://www.tei-c.org/tei-simple/xquery/functions/epub";
 
-import module namespace tei-epub="http://exist-db.org/xquery/epub";
-
 (: generated template function for element spec: ptr :)
 declare %private function model:template-ptr($config as map(*), $node as node()*, $params as map(*)) {
     <t xmlns=""><pb-mei url="{$config?apply-children($config, $node, $params?url)}" player="player">
@@ -327,37 +325,10 @@ declare function model:apply($config as map(*), $input as node()*) {
                         if (not(@target)) then
                             html:inline($config, ., ("tei-ref1", css:map-rend-to-class(.)), .)
                         else
-                            let $target := if (contains(@target, '://')) then
-                                @target
+                            if (not(node())) then
+                                html:link($config, ., ("tei-ref2", css:map-rend-to-class(.)), @target, @target, (), map {})
                             else
-                                if (contains(@target, '#')) then
-                                    let $document-id := substring-before(@target, '#')
-                                    return concat(
-                                        tei-epub:generate-id(root(.)/id($document-id)),
-                                        '.xhtml#',
-                                        substring-after(@target, '#')
-                                    )
-                                else
-                                    let $node-id := @target/data()
-                                    let $node := root(.)/id($node-id)
-                                    let $document := $node/ancestor-or-self::div[@xml:id]
-                                    return
-                                        if ($document) then
-                                            concat(
-                                                tei-epub:generate-id($document),
-                                                '.xhtml',
-                                                if ($document = $node) then
-                                                    ''
-                                                else
-                                                    concat('#', $node-id)
-                                            )
-                                        else
-                                            @target
-                            return
-                                if (not(node())) then
-                                    html:link($config, ., ("tei-ref2", css:map-rend-to-class(.)), @target, $target, (), map {})
-                                else
-                                    html:link($config, ., ("tei-ref3", css:map-rend-to-class(.)), ., $target, (), map {})
+                                html:link($config, ., ("tei-ref3", css:map-rend-to-class(.)), ., @target, (), map {})
                     case element(pubPlace) return
                         if (ancestor::teiHeader) then
                             (: Omit if located in teiHeader. :)
