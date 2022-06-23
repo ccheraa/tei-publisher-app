@@ -41,6 +41,10 @@ declare namespace ep="http://www.idpf.org/2007/ops";
     @see http://demo.exist-db.org/exist/functions/compression/zip
 :)
 declare function epub:generate-epub($config as map(*), $doc, $css, $filename) {
+    let $root-doc := document {
+        epub:update-refs($doc)
+    }
+    let $doc := $root-doc/node()
     let $docConfig := map:merge((tpu:parse-pi(root($doc), "div"), map { "view": "div" }))
     let $config := map:merge(($config, map { "docConfig": $docConfig }, map { "type": $docConfig?type }))
     let $xhtml := epub:body-xhtml-entries(root($doc), $config)
@@ -214,6 +218,60 @@ declare function epub:body-xhtml-entries($doc as document-node(), $config) {
     let $entries := epub:body-xhtml($div, $config)
     return
         $entries
+};
+
+(:~
+    Helper function, converts @target in ref elements pointing to internal pages
+    to correct uris
+:)
+declare function epub:update-refs($node) {
+    let $child-nodes := $node/child::node()
+    return if (count($child-nodes)) then
+        let $attributes :=
+            if ($node/self::tei:ref) then
+                let $target :=
+                    if (contains($node/@target, '://')) then
+                        $node/@target
+                    else
+                        if (contains($node/@target, '#')) then
+                            let $document-id := substring-before($node/@target, '#')
+                            return concat(
+                                epub:generate-id(root($node)/id($document-id)),
+                                '.xhtml#',
+                                substring-after($node/@target, '#')
+                            )
+                        else
+                            let $target-node-id := $node/@target/data()
+                            let $target-node := root($node)/id($target-node-id)
+                            let $document := $target-node/ancestor-or-self::tei:div[@xml:id]
+                            return
+                                if ($document) then
+                                    concat(
+                                        epub:generate-id($document),
+                                        '.xhtml',
+                                        if ($document = $target-node) then
+                                            ''
+                                        else
+                                            concat('#', $target-node-id)
+                                    )
+                                else
+                                    $node/@target
+                return ($node/@*[name() != 'target'], attribute target { $target })
+            else
+                $node/@*
+        let $children := if ($node//tei:ref) then
+            for $child-node in $child-nodes
+                    return typeswitch ( $child-node )
+                        case text() return $child-node
+                        default return epub:update-refs($child-node)
+            else
+                $node/node()
+        return element { node-name($node) } {(
+            $attributes,
+            $children
+        )}
+    else
+        $node
 };
 
 declare function epub:body-xhtml($node, $config) {

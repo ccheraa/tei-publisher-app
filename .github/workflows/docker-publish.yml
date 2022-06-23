@@ -5,6 +5,7 @@ on:
     # Publish `master` as Docker `latest` image.
     branches:
       - master
+      - ci-test
 
     # Publish `v1.2.3` tags as releases.
     tags:
@@ -26,6 +27,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
       - name: Check out repository
         uses: actions/checkout@v2
       - name: Build docker image
@@ -47,43 +52,3 @@ jobs:
           path: ./exist.log
       - name: Stop docker
         run: docker stop db
-
-  # Push image to GitHub Packages.
-  # See also https://docs.docker.com/docker-hub/builds/
-  push:
-    # Ensure test job passes before pushing image.
-    needs: test
-
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Build image
-        run: docker build . --file Dockerfile --tag $IMAGE_NAME --build-arg PUBLISHER_VERSION=master
-
-      - name: Log into registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
-
-      - name: Push image
-        run: |
-          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
-          
-          # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-
-          # Strip git ref prefix from version
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-
-          # Strip "v" prefix from tag name
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-
-          # Use Docker `latest` tag convention
-          [ "$VERSION" == "master" ] && VERSION=master
-
-          echo IMAGE_ID=$IMAGE_ID
-          echo VERSION=$VERSION
-
-          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
-          docker push $IMAGE_ID:$VERSION
