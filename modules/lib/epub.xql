@@ -42,8 +42,7 @@ declare namespace ep="http://www.idpf.org/2007/ops";
 :)
 declare function epub:generate-epub($config as map(*), $doc, $css, $filename) {
     let $root-doc := document {
-        root($doc)/@*,
-        epub:update-refs(root($doc)/node())
+        epub:update-refs($doc)
     }
     let $doc := $root-doc/node()
     let $docConfig := map:merge((tpu:parse-pi(root($doc), "div"), map { "view": "div" }))
