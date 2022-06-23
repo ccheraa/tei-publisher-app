@@ -34,7 +34,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
       - name: Build docker image
-        run: docker build -t exist-db -f Dockerfile . --build-arg PUBLISHER_VERSION=${{ steps.extract_branch.outputs.branch }} --build-arg REPO_URL=${{ github.server_url }}/${{ github.repository }}
+        run: docker build -t exist-db -f Dockerfile .
       - name: Start docker image
         run: docker run --publish 8080:8080 --name db --detach exist-db
       - name: Run npm install
